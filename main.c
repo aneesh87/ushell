@@ -32,29 +32,82 @@ int check_if_builtin(char *cmd) {
     return 0; //False
 }
 
-void setup_pipes_io(Cmd c) {
+char * cmd_path(char * cname) {
+    
+    struct stat sti;
+    char env_path[1000];
+    // This is an out parameter needs to be on heap
+	char * cmd_str = malloc(2000);
+	char * c = getenv("PATH");
+	char * token;
+
+	if (cname == NULL) return NULL;
+
+	if (cname[0] == '/') {
+		if (stat(cname, &sti) == 0) {
+			strncpy(cmd_str, cname, 2000);
+			return cmd_str;
+		} else {
+			free(cmd_str);
+			return NULL;
+		}
+    }
+	strncpy(env_path, c, 1000);
+    
+    token = strtok(env_path, ":");
+    while (token) {
+    	strncpy(cmd_str, token,  2000);
+    	strncat(cmd_str, "/",   2000 - strlen(cmd_str));
+    	strncat(cmd_str, cname, 2000 - strlen(cmd_str));
+    	if (stat(cmd_str, &sti) == 0) {
+    		return cmd_str;
+    	}
+    	token = strtok(NULL, ":");
+    }
+    free(cmd_str);
+    return NULL;
+}
+void setup_pipes_io(Cmd c, int *lp, int *rp) {
     
     int fd = -1;
     if (c) {
         printf("%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
     
-        if (c->in == Tin ) {
-            printf("<(%s) ", c->infile);
-            fd = open(c->infile, O_RDONLY, 0660);
-            if (fd == -1) 
-                error("failed to open input file <%s> to %s", 
-                	  c->infile, c->args[0]);
-            dup2(fd, 0);
-            // Not so sure about this
-            close(fd);
+        if (c->in != Tnil) {
+        	
+        	switch (c->in) {
+            
+                case Tin: {
+                     printf("<(%s) ", c->infile);
+                     fd = open(c->infile, O_RDONLY, 0660);
+                     if (fd == -1) 
+                         err("failed to open input file");
+                     dup2(fd, 0);
+                     // Not so sure about this
+                     close(fd);
+                }
+                break;
+            
+                case Tpipe: 
+                case TpipeErr: {
+
+                	 if (lp == NULL) {err("%s: Something went wrong in pipes");}
+                	 printf("cmd %s\n", c->args[0]);
+                	 fflush(stdout);
+                	 printf("Desc1 is %d Desc2 is %d\n",lp[0], lp[1]);
+                	 dup2(lp[0], 0);
+                	 close(lp[1]);
+                }
+                break;
+                default: err("should not come here");
+            }
         }
 
         if (c->out != Tnil) {
             switch (c->out) {
                case Tout: {
                	  fd = open(c->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0660);
-	              if (fd == -1) error("failed to open output file <%s> to %s",
-	                	               c->outfile, c->args[0]);
+	              if (fd == -1) err("failed to open output file");
 	              dup2(fd, 1);
 	              // Not so sure
 	              close(fd);
@@ -64,8 +117,7 @@ void setup_pipes_io(Cmd c) {
              
                case Tapp: {
                	    fd = open(c->outfile, O_WRONLY | O_APPEND | O_CREAT, 0660);
-	                if (fd == -1) error("failed to open output file <%s> to %s",
-	                	               c->outfile, c->args[0]);
+	                if (fd == -1) err("failed to open output file");
 	                dup2(fd, 1);
 	                // Not so sure
 	                close(fd);
@@ -75,8 +127,7 @@ void setup_pipes_io(Cmd c) {
       
                case ToutErr: {
                	    fd = open(c->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0660);
-	                if (fd == -1) error("failed to open output file <%s> to %s",
-	                	               c->outfile, c->args[0]);
+	                if (fd == -1) err("failed to open output file");
 	                dup2(fd, 1);
 	                dup2(fd, 2);
 	                // Not so sure
@@ -87,8 +138,7 @@ void setup_pipes_io(Cmd c) {
                
                case TappErr: {
                	    fd = open(c->outfile, O_WRONLY | O_APPEND | O_CREAT, 0660);
-	                if (fd == -1) error("failed to open output file <%s> to %s",
-	                	               c->outfile, c->args[0]);
+	                if (fd == -1) err("failed to open output file");
 	                dup2(fd, 1);
 	                dup2(fd, 2);
 	                // Not so sure
@@ -97,36 +147,37 @@ void setup_pipes_io(Cmd c) {
 	           }
 	           break;
                case Tpipe: {
-	                printf("| ");
+            
+               	    if (rp == NULL) {
+               	    	err("Something went wrong in output pipes");
+               	    }
+               	    printf("| ");
+               	    printf("Desc1 is %d Desc2 is %d\n",rp[0], rp[1]);
+               	    dup2(rp[1], 1);
+               	    close(rp[0]);
 	           }
 	           break;
                case TpipeErr: {
+               	    if (rp == NULL) {
+               	    	err("Something went wrong in output pipes");
+               	    }
+               	    dup2(rp[1], 2);
+               	    dup2(rp[1], 1);
+               	    close(rp[0]);
 	                printf("|& ");
                }
 	           break;
                default:
-	                fprintf(stderr, "Shouldn't get here\n");
+	                err("Shouldn't get here");
 	                exit(-1);
             }   
         }
     }
 }
 
-static void prCmd(Cmd c)
+static void prCmd(Cmd c, int * left, int * right)
 {
-    /*
-    int i;
-    
-    if (c->nargs > 1 ) {
-        printf("[");
-        for ( i = 1; c->args[i] != NULL; i++ )
-	         printf("%d:%s,", i, c->args[i]);
-             printf("\b]");
-    }
-    putchar('\n');
-    */
 
-    // this driver understands one command
     if (strcmp(c->args[0], "end") == 0) {
         exit(0);
     }
@@ -134,37 +185,81 @@ static void prCmd(Cmd c)
     if (c->next == NULL && check_if_builtin(c->args[0])) {
        // Last command in pipe is a builtin. Execute directly.
     } else {
+        char * path = cmd_path(c->args[0]);
         pid_t pid;
         pid = fork();
         if (pid < 0) {
             err("fork: failed");
         } else if (pid == 0) {
-            /*child */
-            setup_pipes_io(c);
-            execv(c->args[0], c->args);
-            exit(0);
-        } else {
-            /*parent */
-            wait(NULL);
+            /*child */   
+            if (path == NULL) {
+                // handle this
+                err("command not found");
+            } else {    
+                setup_pipes_io(c, left, right);
+                execv(path, c->args);
+                exit(0);
+            }
         }
+        if (path) {free(path);};
     } 
 }
 
 
 static void prPipe(Pipe p)
 {
-  int i = 0;
+  int i;
   Cmd c;
+  Cmd temp;
+  int * fd;
 
   if ( p == NULL )
     return;
-
-  printf("Begin pipe%s\n", p->type == Pout ? "" : " Error");
-  for ( c = p->head; c != NULL; c = c->next ) {
-    printf("  Cmd #%d: ", ++i);
-    prCmd(c);
+  
+  int pipe_count = -1;
+  
+  for (temp = p->head; temp != NULL; temp = temp->next) {
+  	pipe_count = pipe_count + 1;
   }
-  printf("End pipe\n");
+  
+  fd = calloc(pipe_count*2, sizeof(int));
+  i = 0;
+  for (i = 0; i <= (pipe_count - 1)*2; i= i + 2) {
+  	   pipe(fd + i);
+  }
+  printf("Begin pipe%s\n", p->type == Pout ? "" : " Error");
+  i = 0;
+  for ( c = p->head; c != NULL; c = c->next ) {
+    int * left =  NULL;
+    int * right = NULL;
+    if (i != 0) {
+        left = fd + 2*(i -1);
+        printf("LEFT %d,%d\n", 2*(i-1), *left);
+    } 
+    if (i != pipe_count) {
+        right = fd + 2*i;
+        printf(" RIGHT %d,%d\n", 2*i, *right);
+    }
+    prCmd(c, left, right);
+    
+    if (i > 0) {
+    	close(fd[2*i - 2]);
+    	close(fd[2*i - 1]);
+    }
+    
+    printf("Cmd #%d:%s \n", ++i, c->args[0]);
+  }
+  /* Not Working
+  for (i = 0; i <pipe_count*2; i++) {
+  	   printf("%d\n", fd[i]);
+  	   close(fd[i]);
+  }*/
+  int pid,status;
+  
+  while ((pid = wait(&status)) != -1)	/* pick up all the dead children */
+		fprintf(stderr, "process %d exits with %d\n", pid, WEXITSTATUS(status));
+  
+  free(fd);
   prPipe(p->next);
 }
 
