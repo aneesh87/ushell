@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include "parse.h"
+#include <signal.h> 
 
 
 #define NUM_BUILTINS 9
@@ -195,6 +196,7 @@ static void prCmd(Cmd c, int * left, int * right)
             if (path == NULL) {
                 // handle this
                 err("command not found");
+                exit(0);
             } else {    
                 setup_pipes_io(c, left, right);
                 execv(path, c->args);
@@ -263,11 +265,44 @@ static void prPipe(Pipe p)
   prPipe(p->next);
 }
 
+/* 
+ *Below two functions are inspired from 
+ *http://www.thegeekstuff.com/2012/03/catch-signals-sample-c-code
+ */
+void sig_handler(int signalno)
+{
+    if (signalno == SIGTERM)
+        printf("received SIGTERM\n");
+}
+
+void setup_signals()
+{  
+  if (signal(SIGTERM, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGTERM\n");
+  
+  if (signal(SIGQUIT, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGQUIT\n");
+  
+  if (signal(SIGINT, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGINT\n");
+
+  if (signal(SIGUSR1, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGUSR1\n");
+  
+  if (signal(SIGUSR2, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGUSR1\n");
+  
+  if (signal(SIGABRT, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGABRT\n");
+}
+
+
 int main(int argc, char *argv[])
 {
   Pipe p;
   char host[50];
-
+  setup_signals();
+  
   while ( 1 ) {
     if (gethostname(host,50) != 0) {
         strncpy(host,"armadillo",50);
