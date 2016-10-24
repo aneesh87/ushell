@@ -24,6 +24,8 @@
 #define MAXLEN 1024
 #define err(x) fprintf(stderr, "%s\n", x);
 
+extern char **environ;
+
 char shell_built_ins[NUM_BUILTINS][20] = {"cd", "pwd", "echo", "setenv", "logout", "end", "jobs",  
                                           "where", "nice", "kill", "unsetenv", "fg", "bg"};
 
@@ -248,6 +250,30 @@ void run_builtin(Cmd c) {
     	return;
     }
 
+    if(strcmp(c->args[0],"setenv") == 0) {
+    	if (c->args[1] == NULL) {
+    		int i;
+            char *c = *environ;
+            for (i = 1; c; i++) {
+                 printf("%s\n", c);
+                 c = *(environ+i);
+            }
+    	} else {
+    		 if (setenv(c->args[1], c->args[2], 1) != 0) {
+                 err("setenv: error");
+    		 }
+    	}
+    	return;
+    }
+
+    if(strcmp(c->args[0], "unsetenv") == 0) {
+       if (c->args[1] != NULL) {
+           if (unsetenv(c->args[1]) != 0) { err("unsetenv: error ");}
+       } else {
+           err("unsetenv: too few arguments");
+       }
+       return;
+    }
 }
 
 static void prCmd(Cmd c, int * left, int * right)
