@@ -18,10 +18,10 @@
 #include <signal.h> 
 
 
-#define NUM_BUILTINS 9
+#define NUM_BUILTINS 10
 #define err(x) fprintf(stderr, "%s\n", x);
 
-char shell_built_ins[NUM_BUILTINS][20] = {"cd", "pwd", "echo", "setenv", "logout",  "where", "nice", "kill", "unsetenv"};
+char shell_built_ins[NUM_BUILTINS][20] = {"cd", "pwd", "echo", "setenv", "logout", "end",  "where", "nice", "kill", "unsetenv"};
 
 int check_if_builtin(char *cmd) {
     int i;
@@ -176,18 +176,34 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
     }
 }
 
-static void prCmd(Cmd c, int * left, int * right)
-{
-
-    if (strcmp(c->args[0], "end") == 0) {
+void run_builtin(Cmd c) {
+	
+	if ((strcmp(c->args[0], "end") == 0) || 
+    	       (strcmp(c->args[0], "logout") == 0)) {
         exit(0);
     }
 
-    if (c->next == NULL && check_if_builtin(c->args[0])) {
-       // Last command in pipe is a builtin. Execute directly.
+
+}
+static void prCmd(Cmd c, int * left, int * right)
+{
+    pid_t pid;
+    if (check_if_builtin(c->args[0])) {
+       if (c->next == NULL) {
+       	 // Last command in pipe is a builtin. Execute directly (csh). 
+           run_builtin(c);
+       } else {
+       	 // builtin has to be run in pipe
+           pid = fork();
+           if (pid < 0) {
+           	   err("Fork Failed");
+           } else if (pid == 0) {
+           	   setup_pipes_io(c, left, right);
+           	   run_builtin(c);
+           }
+       }
     } else {
         char * path = cmd_path(c->args[0]);
-        pid_t pid;
         pid = fork();
         if (pid < 0) {
             err("fork: failed");
