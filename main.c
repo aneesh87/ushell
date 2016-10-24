@@ -217,6 +217,16 @@ void run_builtin(Cmd c) {
     	}
     	return;
     }
+
+    if (strcmp(c->args[0], "echo") == 0) {
+    	if (c->nargs > 1 ) {
+            int i;
+            for (i = 1; c->args[i]!= NULL; i++)
+            	printf("%s\n",c->args[i]);
+        }
+        return;
+    }
+
 }
 
 static void prCmd(Cmd c, int * left, int * right)
