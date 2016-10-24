@@ -204,6 +204,18 @@ void run_builtin(Cmd c) {
     	char *c = getcwd(pwd, 2000);
     	if (c) {printf("%s\n", pwd);}
     	else {err("unable to get pwd");}
+    	return;
+    }
+
+    if (strcmp(c->args[0], "cd") == 0) {
+    	if (c->args[1] == NULL) {
+    		char * home_dir = getenv("HOME");
+    		if (home_dir == NULL)           {err("cd: failed");}
+    		else if (chdir(home_dir) == -1) {err("cd: failed");}
+    	} else {
+    		if (chdir(c->args[1]) == -1)    {err("cd: failed");}
+    	}
+    	return;
     }
 }
 
