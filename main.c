@@ -194,7 +194,7 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
 }
 
 void run_builtin(Cmd c) {
-	
+
 	if ((strcmp(c->args[0], "end") == 0) || 
     	       (strcmp(c->args[0], "logout") == 0)) {
         exit(0);
@@ -253,10 +253,69 @@ void run_builtin(Cmd c) {
 static void prCmd(Cmd c, int * left, int * right)
 {
     pid_t pid;
+
     if (check_if_builtin(c->args[0])) {
        if (c->next == NULL) {
-       	 // Last command in pipe is a builtin. Execute directly (csh). 
+       	   // reward:effort is very low for this complex trickery.
+       	   // Just calling run_builtin may do minus few cases.
+       	   int fd;
+       	   int saved_stdout;
+       	   int saved_stderr;
+
+       	   if (c->in == Tin) {
+       	   	    int fdin = open(c->infile, O_RDONLY, 0660);
+                if (fdin == -1) {
+                    fprintf(stderr, "%s: Permission denied\n", c->infile);
+                    return;
+                }
+                close(fdin);
+       	   }
+       	 // Last command in pipe is a builtin. Execute directly (csh).
+       	 // Take care only of output redirection. 
+
+           if (c->out == Tout || c->out == ToutErr) {
+           
+           	   fd = open(c->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0660);
+	           if (fd == -1)  { 
+	               fprintf(stderr, "%s: Permission denied\n", c->outfile);
+	               return;
+	           }
+	       
+	       } else if (c->out == Tapp || c->out == TappErr) {
+
+	       	    fd = open(c->outfile, O_WRONLY | O_APPEND | O_CREAT, 0660);
+	            if (fd == -1) {
+	                fprintf(stderr, "%s: Permission denied\n", c->outfile);
+	                return;
+	            }
+	       }
+
+	       if (c->out == Tout || c->out == Tapp) {
+	       	   saved_stdout = dup(1);
+	       	   dup2(fd, 1);
+	       	   close(fd);
+
+	       } else if (c->out == ToutErr || c->out == TappErr) {
+	       	   saved_stdout = dup(1);
+	       	   saved_stderr = dup(2);
+	       	   dup2(fd,1);
+	       	   dup2(fd,2);
+	       	   close(fd);
+	       }
+
            run_builtin(c);
+           
+           if (c->out == Tout || c->out == Tapp) {
+	       	   dup2(saved_stdout, 1);
+	       	   close(saved_stdout);
+
+	       } else if (c->out == ToutErr || c->out == TappErr) {
+	       	   dup2(saved_stdout,1);
+	       	   dup2(saved_stderr,2);
+	       	   close(saved_stdout);
+	       	   close(saved_stderr);
+	       }
+
        } else {
        	 // builtin has to be run in pipe
            pid = fork();
