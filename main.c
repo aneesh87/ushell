@@ -20,10 +20,12 @@
 #include <errno.h>
 
 
-#define NUM_BUILTINS 10
+#define NUM_BUILTINS 13
+#define MAXLEN 1024
 #define err(x) fprintf(stderr, "%s\n", x);
 
-char shell_built_ins[NUM_BUILTINS][20] = {"cd", "pwd", "echo", "setenv", "logout", "end",  "where", "nice", "kill", "unsetenv"};
+char shell_built_ins[NUM_BUILTINS][20] = {"cd", "pwd", "echo", "setenv", "logout", "end", "jobs",  
+                                          "where", "nice", "kill", "unsetenv", "fg", "bg"};
 
 int check_if_builtin(char *cmd) {
     int i;
@@ -38,37 +40,35 @@ int check_if_builtin(char *cmd) {
 char * cmd_path(char * cname) {
     
     struct stat sti;
-    char env_path[1000];
-    // This is an out parameter needs to be on heap
-	char * cmd_str = malloc(2000);
+    char env_path[MAXLEN];
+	char cmd_str[MAXLEN];
 	char * c = getenv("PATH");
 	char * token;
 
 	if (cname == NULL) return NULL;
 
-	if (cname[0] == '/') {
-		if (stat(cname, &sti) == 0) {
-			strncpy(cmd_str, cname, 2000);
-			return cmd_str;
-		} else {
-			free(cmd_str);
-			return NULL;
-		}
-    }
-	strncpy(env_path, c, 1000);
+    // This is an out parameter needs to be on heap
+    char * buffer = calloc(MAXLEN, sizeof(char));
+    int cmd_found = 0;
+	strncpy(env_path, c, MAXLEN);
     
     token = strtok(env_path, ":");
     while (token) {
-    	strncpy(cmd_str, token,  2000);
-    	strncat(cmd_str, "/",   2000 - strlen(cmd_str));
-    	strncat(cmd_str, cname, 2000 - strlen(cmd_str));
+    	strncpy(cmd_str, token,  MAXLEN);
+    	strncat(cmd_str, "/",    MAXLEN - strlen(cmd_str));
+    	strncat(cmd_str, cname,  MAXLEN - strlen(cmd_str));
     	if (stat(cmd_str, &sti) == 0) {
-    		return cmd_str;
+    		snprintf(buffer, MAXLEN - strlen(buffer), "%s\n", cmd_str);
+    		cmd_found = 1;
     	}
     	token = strtok(NULL, ":");
     }
-    free(cmd_str);
-    return NULL;
+    if (cmd_found) {
+    	return buffer;
+    } else {
+        free(buffer);
+        return NULL;
+    }
 }
 void setup_pipes_io(Cmd c, int *lp, int *rp) {
     
@@ -226,6 +226,26 @@ void run_builtin(Cmd c) {
             	printf("%s\n",c->args[i]);
         }
         return;
+    }
+
+    if(strcmp(c->args[0], "where") == 0) {
+    	if (c->args[1] == NULL) {
+    		err("where: too few arguments");
+    		return;
+    	}
+    	if (check_if_builtin(c->args[1])) {
+    		printf("%s: shell built-in command", c->args[1]);
+    		return;
+    	}
+
+    	char * path = cmd_path(c->args[1]);
+    	if (path) {
+    		printf("%s", path);
+    		free(path);
+        } else {
+        	fprintf(stderr, "%s: command not found\n", c->args[1]);
+        }
+    	return;
     }
 
 }
