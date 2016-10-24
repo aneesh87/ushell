@@ -84,7 +84,7 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
             
                 case Tin: {
                      printf("<(%s) ", c->infile);
-                     fd = open(c->infile, O_RDONLY, 0660);
+                     fd = open(c->infile, O_RDONLY);
                      if (fd == -1) {
                          fprintf(stderr, "%s: Permission denied\n", c->infile);
                          exit(1);
@@ -289,7 +289,7 @@ static void prCmd(Cmd c, int * left, int * right)
        	   int saved_stderr;
 
        	   if (c->in == Tin) {
-       	   	    int fdin = open(c->infile, O_RDONLY, 0660);
+       	   	    int fdin = open(c->infile, O_RDONLY);
                 if (fdin == -1) {
                 	if (errno == ENOENT) {
                 		fprintf(stderr, "%s: File not found\n", c->infile);
@@ -466,18 +466,49 @@ void setup_signals()
         printf("\ncan't catch SIGABRT\n");
 }
 
+void process_ushrc() {
 
+  char * home = getenv("HOME");
+  char rcpath[512];
+  int fd;
+  int saved_stdin;
+  
+  strncpy(rcpath, home, 512);
+  strncat(rcpath, "/.ushrc", 512);
+  
+  fd = open(rcpath, O_RDONLY);
+  if (fd == -1) {
+  	  if (errno == ENOENT) {
+  	  	  err(".ushrc: not found");
+  	  } else {
+  	  	  err(".ushrc: Permission denied.")
+  	  }
+  } else {
+  	  saved_stdin = dup(0);
+  	  dup2(fd, 0);
+  	  close(fd);
+  	  Pipe p1 = parse();
+  	  prPipe(p1);
+  	  freePipe(p1);
+  	  dup2(saved_stdin, 0);
+  	  close(saved_stdin);
+  }
+}
 int main(int argc, char *argv[])
 {
   Pipe p;
   char host[50];
-  setup_signals();
   
+  setup_signals();
+  process_ushrc();
+
   while ( 1 ) {
     if (gethostname(host,50) != 0) {
         strncpy(host,"armadillo",50);
     }
     printf("%s%% ", host);
+    //weird behavior without below line
+    fflush(stdout);
     p = parse();
     prPipe(p);
     freePipe(p);
