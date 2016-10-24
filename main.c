@@ -13,6 +13,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include "parse.h"
 #include <signal.h> 
@@ -198,8 +199,14 @@ void run_builtin(Cmd c) {
         exit(0);
     }
 
-
+    if (strcmp(c->args[0], "pwd") == 0 ) {
+    	char pwd[2000];
+    	char *c = getcwd(pwd, 2000);
+    	if (c) {printf("%s\n", pwd);}
+    	else {err("unable to get pwd");}
+    }
 }
+
 static void prCmd(Cmd c, int * left, int * right)
 {
     pid_t pid;
@@ -215,6 +222,7 @@ static void prCmd(Cmd c, int * left, int * right)
            } else if (pid == 0) {
            	   setup_pipes_io(c, left, right);
            	   run_builtin(c);
+           	   exit(0);
            }
        }
     } else {
