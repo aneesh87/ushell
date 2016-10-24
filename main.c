@@ -81,11 +81,14 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                 case Tin: {
                      printf("<(%s) ", c->infile);
                      fd = open(c->infile, O_RDONLY, 0660);
-                     if (fd == -1) 
-                         err("failed to open input file");
-                     dup2(fd, 0);
-                     // Not so sure about this
-                     close(fd);
+                     if (fd == -1) {
+                         fprintf(stderr, "%s: Permission denied\n", c->infile);
+                         exit(1);
+                     } else {
+                     	dup2(fd, 0);
+                        // Not so sure about this
+                        close(fd);
+                     }
                 }
                 break;
             
@@ -108,7 +111,10 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
             switch (c->out) {
                case Tout: {
                	  fd = open(c->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0660);
-	              if (fd == -1) err("failed to open output file");
+	              if (fd == -1) { 
+	              	  fprintf(stderr, "%s: Permission denied\n", c->outfile);
+	              	  exit(1);
+	              }
 	              dup2(fd, 1);
 	              // Not so sure
 	              close(fd);
@@ -118,7 +124,10 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
              
                case Tapp: {
                	    fd = open(c->outfile, O_WRONLY | O_APPEND | O_CREAT, 0660);
-	                if (fd == -1) err("failed to open output file");
+	                if (fd == -1) { 
+	                	fprintf(stderr, "%s: Permission denied\n", c->outfile);
+	                    exit(1);
+	                }
 	                dup2(fd, 1);
 	                // Not so sure
 	                close(fd);
@@ -128,7 +137,10 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
       
                case ToutErr: {
                	    fd = open(c->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0660);
-	                if (fd == -1) err("failed to open output file");
+	                if (fd == -1)  { 
+	                	fprintf(stderr, "%s: Permission denied\n", c->outfile);
+	                	exit(1);
+	                }
 	                dup2(fd, 1);
 	                dup2(fd, 2);
 	                // Not so sure
@@ -139,7 +151,10 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                
                case TappErr: {
                	    fd = open(c->outfile, O_WRONLY | O_APPEND | O_CREAT, 0660);
-	                if (fd == -1) err("failed to open output file");
+	                if (fd == -1) {
+	                	fprintf(stderr, "%s: Permission denied\n", c->outfile);
+	                	exit(1);
+	                }
 	                dup2(fd, 1);
 	                dup2(fd, 2);
 	                // Not so sure
@@ -208,15 +223,16 @@ static void prCmd(Cmd c, int * left, int * right)
         if (pid < 0) {
             err("fork: failed");
         } else if (pid == 0) {
-            /*child */   
+            /*child */
+            setup_pipes_io(c, left, right); 
             if (path == NULL) {
                 // handle this
                 err("command not found");
-                exit(0);
+                exit(1);
             } else {    
-                setup_pipes_io(c, left, right);
                 execv(path, c->args);
-                exit(0);
+                err("permission denied");
+                exit(1);
             }
         }
         if (path) {free(path);};
