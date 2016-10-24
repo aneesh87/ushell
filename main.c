@@ -265,7 +265,11 @@ static void prCmd(Cmd c, int * left, int * right)
        	   if (c->in == Tin) {
        	   	    int fdin = open(c->infile, O_RDONLY, 0660);
                 if (fdin == -1) {
-                    fprintf(stderr, "%s: Permission denied\n", c->infile);
+                	if (errno == ENOENT) {
+                		fprintf(stderr, "%s: File not found\n", c->infile);
+                	} else {
+                        fprintf(stderr, "%s: Permission denied\n", c->infile);
+                    }
                     return;
                 }
                 close(fdin);
