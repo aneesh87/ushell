@@ -16,7 +16,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "parse.h"
-#include <signal.h> 
+#include <signal.h>
+#include <errno.h>
 
 
 #define NUM_BUILTINS 10
@@ -248,24 +249,22 @@ static void prCmd(Cmd c, int * left, int * right)
            }
        }
     } else {
-        char * path = cmd_path(c->args[0]);
+        //char * path = cmd_path(c->args[0]);
         pid = fork();
         if (pid < 0) {
             err("fork: failed");
         } else if (pid == 0) {
             /*child */
-            setup_pipes_io(c, left, right); 
-            if (path == NULL) {
-                // handle this
-                err("command not found");
-                exit(1);
+            setup_pipes_io(c, left, right);
+            execvp(c->args[0], c->args);
+            if (errno == ENOENT) {
+                fprintf(stderr, "%s: command not found\n", c->args[0]);
             } else {    
-                execv(path, c->args);
-                err("permission denied");
-                exit(1);
+                fprintf(stderr, "%s: permission denied\n", c->args[0]);
             }
+            exit(1);
         }
-        if (path) {free(path);};
+        // if (path) {free(path);};
     } 
 }
 
