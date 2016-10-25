@@ -233,7 +233,7 @@ void run_builtin(Cmd c) {
     		return;
     	}
     	if (check_if_builtin(c->args[1])) {
-    		printf("%s: shell built-in command", c->args[1]);
+    		printf("%s: shell built-in command\n", c->args[1]);
     		return;
     	}
 
