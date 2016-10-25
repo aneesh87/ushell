@@ -356,9 +356,19 @@ static void prCmd(Cmd c, int * left, int * right)
                      dup2(fdin, 0);
                      close(fdin);
                 }
+       	   } else if (c->in == Tpipe || c->in == TpipeErr) {
+
+                if (left == NULL) {
+                	err("Something went wrong in pipes"); 
+                	return;
+                }
+                saved_stdin = dup(0);
+                dup2(left[0], 0);
+                close(left[1]);
+                close(left[0]);
        	   }
        	 // Last command in pipe is a builtin. Execute directly (csh).
-       	 // Take care only of output redirection. 
+       	 // Take care only of redirection. Last command has no right pipe.
 
            if (c->out == Tout || c->out == ToutErr) {
            
@@ -403,7 +413,7 @@ static void prCmd(Cmd c, int * left, int * right)
 	       	   close(saved_stderr);
 	       }
 
-	       if(c->in == Tin) {
+	       if(c->in == Tin || c->in == Tpipe || c->in == TpipeErr) {
 	       	  dup2(saved_stdin, 0);
 	       	  close(saved_stdin);
 	       }
