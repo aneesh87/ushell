@@ -63,7 +63,12 @@ char * cmd_path(char * cname) {
     	strncat(cmd_str, "/",    MAXLEN - strlen(cmd_str));
     	strncat(cmd_str, cname,  MAXLEN - strlen(cmd_str));
     	if (stat(cmd_str, &sti) == 0) {
-    		snprintf(buffer, MAXLEN - strlen(buffer), "%s\n", cmd_str);
+    		if (strlen(buffer) == 0) {
+    		    snprintf(buffer, MAXLEN, "%s\n", cmd_str);
+    		} else {
+    			strncat(buffer, cmd_str, MAXLEN - strlen(buffer));
+    			strncat(buffer, "\n", MAXLEN - strlen(buffer));
+    		}
     		cmd_found = 1;
     	}
     	token = strtok(NULL, ":");
@@ -105,7 +110,7 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                 	 	 exit(1);
                 	 }
                 	 //printf("cmd %s\n", c->args[0]);
-                	 fflush(stdout);
+                	 //fflush(stdout);
                 	 //printf("Desc1 is %d Desc2 is %d\n",lp[0], lp[1]);
                 	 dup2(lp[0], 0);
                 	 close(lp[1]);
@@ -240,7 +245,7 @@ void run_builtin(Cmd c) {
     		return;
     	}
     	if (check_if_builtin(c->args[1])) {
-    		printf("%s: shell built-in command\n", c->args[1]);
+    		printf("%s: shell built-in command.\n", c->args[1]);
     		return;
     	}
 
