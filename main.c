@@ -79,21 +79,19 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
     
     int fd = -1;
     if (c) {
-        printf("%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
-    
+        //printf("%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
         if (c->in != Tnil) {
         	
         	switch (c->in) {
             
                 case Tin: {
-                     printf("<(%s) ", c->infile);
+                     //printf("<(%s) ", c->infile);
                      fd = open(c->infile, O_RDONLY);
                      if (fd == -1) {
                          fprintf(stderr, "%s: Permission denied\n", c->infile);
                          exit(1);
                      } else {
                      	dup2(fd, 0);
-                        // Not so sure about this
                         close(fd);
                      }
                 }
@@ -103,9 +101,9 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                 case TpipeErr: {
 
                 	 if (lp == NULL) {err("%s: Something went wrong in pipes");}
-                	 printf("cmd %s\n", c->args[0]);
+                	 //printf("cmd %s\n", c->args[0]);
                 	 fflush(stdout);
-                	 printf("Desc1 is %d Desc2 is %d\n",lp[0], lp[1]);
+                	 //printf("Desc1 is %d Desc2 is %d\n",lp[0], lp[1]);
                 	 dup2(lp[0], 0);
                 	 close(lp[1]);
                 }
@@ -123,9 +121,8 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
 	              	  exit(1);
 	              }
 	              dup2(fd, 1);
-	              // Not so sure
 	              close(fd);
-	              printf(">(%s) ", c->outfile);
+	              //printf(">(%s) ", c->outfile);
 	           }       
 	           break;
              
@@ -136,9 +133,8 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
 	                    exit(1);
 	                }
 	                dup2(fd, 1);
-	                // Not so sure
 	                close(fd);
-	                printf(">>(%s) ", c->outfile);
+	                //printf(">>(%s) ", c->outfile);
 	           }
 	           break;
       
@@ -150,9 +146,8 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
 	                }
 	                dup2(fd, 1);
 	                dup2(fd, 2);
-	                // Not so sure
 	                close(fd);
-	                printf(">&(%s) ", c->outfile);
+	                //printf(">&(%s) ", c->outfile);
        	       }     
 	           break;
                
@@ -164,9 +159,8 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
 	                }
 	                dup2(fd, 1);
 	                dup2(fd, 2);
-	                // Not so sure
 	                close(fd);
-	                printf(">>&(%s) ", c->outfile);
+	                //printf(">>&(%s) ", c->outfile);
 	           }
 	           break;
                case Tpipe: {
@@ -174,8 +168,8 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                	    if (rp == NULL) {
                	    	err("Something went wrong in output pipes");
                	    }
-               	    printf("| ");
-               	    printf("Desc1 is %d Desc2 is %d\n",rp[0], rp[1]);
+               	    //printf("| ");
+               	    //printf("Desc1 is %d Desc2 is %d\n",rp[0], rp[1]);
                	    dup2(rp[1], 1);
                	    close(rp[0]);
 	           }
@@ -187,7 +181,7 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                	    dup2(rp[1], 2);
                	    dup2(rp[1], 1);
                	    close(rp[0]);
-	                printf("|& ");
+	                //printf("|& ");
                }
 	           break;
                default:
@@ -430,7 +424,6 @@ static void prCmd(Cmd c, int * left, int * right)
            }
        }
     } else {
-        //char * path = cmd_path(c->args[0]);
         pid = fork();
         if (pid < 0) {
             err("fork: failed");
@@ -445,7 +438,6 @@ static void prCmd(Cmd c, int * left, int * right)
             }
             exit(1);
         }
-        // if (path) {free(path);};
     } 
 }
 
@@ -471,18 +463,18 @@ static void prPipe(Pipe p)
   for (i = 0; i <= (pipe_count - 1)*2; i= i + 2) {
   	   pipe(fd + i);
   }
-  printf("Begin pipe%s\n", p->type == Pout ? "" : " Error");
+  //printf("Begin pipe%s\n", p->type == Pout ? "" : " Error");
   i = 0;
-  for ( c = p->head; c != NULL; c = c->next ) {
+  for ( c = p->head; c != NULL; c = c->next, i++) {
     int * left =  NULL;
     int * right = NULL;
     if (i != 0) {
         left = fd + 2*(i -1);
-        printf("LEFT %d,%d\n", 2*(i-1), *left);
+        //printf("LEFT %d,%d\n", 2*(i-1), *left);
     } 
     if (i != pipe_count) {
         right = fd + 2*i;
-        printf(" RIGHT %d,%d\n", 2*i, *right);
+        //printf(" RIGHT %d,%d\n", 2*i, *right);
     }
     prCmd(c, left, right);
     
@@ -490,18 +482,13 @@ static void prPipe(Pipe p)
     	close(fd[2*i - 2]);
     	close(fd[2*i - 1]);
     }
-    
-    printf("Cmd #%d:%s \n", ++i, c->args[0]);
+    //printf("Cmd #%d:%s \n", i+1, c->args[0]);
   }
-  /* Not Working
-  for (i = 0; i <pipe_count*2; i++) {
-  	   printf("%d\n", fd[i]);
-  	   close(fd[i]);
-  }*/
+
   int pid,status;
   
-  while ((pid = wait(&status)) != -1)	/* pick up all the dead children */
-		fprintf(stderr, "process %d exits with %d\n", pid, WEXITSTATUS(status));
+  while ((pid = wait(&status)) != -1);	/* pick up all the dead children */
+		//fprintf(stderr, "process %d exits with %d\n", pid, WEXITSTATUS(status));
   
   free(fd);
   prPipe(p->next);
