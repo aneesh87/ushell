@@ -499,7 +499,7 @@ static void prPipe(Pipe p)
 
   int pid,status;
   
-  while ((pid = wait(&status)) != -1);	/* pick up all the dead children */
+  while ((pid = wait(&status)) != -1);	/* wait for all children */
 		//fprintf(stderr, "process %d exits with %d\n", pid, WEXITSTATUS(status));
   
   free(fd);
