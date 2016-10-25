@@ -226,8 +226,10 @@ void run_builtin(Cmd c) {
     if (strcmp(c->args[0], "echo") == 0) {
     	if (c->nargs > 1 ) {
             int i;
-            for (i = 1; c->args[i]!= NULL; i++)
-            	printf("%s\n",c->args[i]);
+            printf("%s", c->args[1]);
+            for (i = 2; c->args[i]!= NULL; i++)
+            	printf(" %s",c->args[i]);
+            printf("\n");
         }
         return;
     }
