@@ -526,15 +526,7 @@ void setup_signals()
   
   if (signal(SIGINT, sig_handler) == SIG_ERR)
         printf("\ncan't catch SIGINT\n");
-
-  if (signal(SIGUSR1, sig_handler) == SIG_ERR)
-        printf("\ncan't catch SIGUSR1\n");
   
-  if (signal(SIGUSR2, sig_handler) == SIG_ERR)
-        printf("\ncan't catch SIGUSR1\n");
-  
-  if (signal(SIGABRT, sig_handler) == SIG_ERR)
-        printf("\ncan't catch SIGABRT\n");
 }
 
 void process_ushrc() {
