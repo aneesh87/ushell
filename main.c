@@ -18,10 +18,13 @@
 #include "parse.h"
 #include <signal.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 
 #define NUM_BUILTINS 13
 #define MAXLEN 1024
+#define DEFAULT_PRIO 4
 #define err(x) fprintf(stderr, "%s\n", x);
 
 extern char **environ;
@@ -274,6 +277,56 @@ void run_builtin(Cmd c) {
        }
        return;
     }
+
+    if(strcmp(c->args[0], "nice") == 0) {
+       if (c->nargs == 1) {
+       	   int rc = setpriority(PRIO_PROCESS, getpid(), DEFAULT_PRIO);
+       	   if (rc < 0) { err("nice: setpriority failed");}
+       	   return;
+       }
+       int prio = DEFAULT_PRIO;
+       int cmd_without_num = 0;
+       if (c->args[1][0] == '-' || c->args[1][0] == '+') { // +(-)prio given
+       	   char * num = c->args[1] + 1;
+       	   prio = atoi(num);
+       	   if (c->args[1][0] == '-') prio = prio * -1;
+       } else if (c->args[1][0] >= '0' && c->args[1][0] <= '9') { // prio given
+       	   prio = atoi(c->args[1]);
+       } else { //command specified without number
+       	   cmd_without_num = 1;
+       }
+       if (c->args[2] == NULL && cmd_without_num == 0) {
+       	   int rc = setpriority(PRIO_PROCESS, getpid(), prio);
+       	   if (rc < 0) { err("nice: setpriority failed");}
+       	   return;
+       }
+       char * cmd_to_execute = c->args[2];
+       if (cmd_without_num == 1) {
+       	   cmd_to_execute = c->args[1];
+       }
+
+       int pid = fork();
+       if (pid < 0) {
+       	   err("nice: fork failed");
+       	   return;
+       } else if (pid == 0) {
+       	    setpriority(PRIO_PROCESS, 0, prio);
+            if (cmd_without_num == 1) {
+       	        execvp(cmd_to_execute, c->args + 1);
+            } else {
+            	execvp(cmd_to_execute, c->args + 2);
+            }
+            if (errno == ENOENT) {
+                fprintf(stderr, "%s: command not found\n", cmd_to_execute);
+            } else {    
+                fprintf(stderr, "%s: permission denied\n", cmd_to_execute);
+            }
+            exit(1);
+       } else {
+       	    waitpid(pid, NULL, 0);
+       	    return;
+       }
+    }
 }
 
 static void prCmd(Cmd c, int * left, int * right)
@@ -287,6 +340,7 @@ static void prCmd(Cmd c, int * left, int * right)
        	   int fd;
        	   int saved_stdout;
        	   int saved_stderr;
+       	   int saved_stdin;
 
        	   if (c->in == Tin) {
        	   	    int fdin = open(c->infile, O_RDONLY);
@@ -297,8 +351,11 @@ static void prCmd(Cmd c, int * left, int * right)
                         fprintf(stderr, "%s: Permission denied\n", c->infile);
                     }
                     return;
+                } else {
+                     saved_stdin = dup(0);
+                     dup2(fdin, 0);
+                     close(fdin);
                 }
-                close(fdin);
        	   }
        	 // Last command in pipe is a builtin. Execute directly (csh).
        	 // Take care only of output redirection. 
@@ -344,6 +401,11 @@ static void prCmd(Cmd c, int * left, int * right)
 	       	   dup2(saved_stderr,2);
 	       	   close(saved_stdout);
 	       	   close(saved_stderr);
+	       }
+
+	       if(c->in == Tin) {
+	       	  dup2(saved_stdin, 0);
+	       	  close(saved_stdin);
 	       }
 
        } else {
