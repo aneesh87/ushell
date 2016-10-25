@@ -100,7 +100,10 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                 case Tpipe: 
                 case TpipeErr: {
 
-                	 if (lp == NULL) {err("%s: Something went wrong in pipes");}
+                	 if (lp == NULL) {
+                	 	 err("Something went wrong in inp pipes");
+                	 	 exit(1);
+                	 }
                 	 //printf("cmd %s\n", c->args[0]);
                 	 fflush(stdout);
                 	 //printf("Desc1 is %d Desc2 is %d\n",lp[0], lp[1]);
@@ -167,6 +170,7 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
             
                	    if (rp == NULL) {
                	    	err("Something went wrong in output pipes");
+               	    	exit(1);
                	    }
                	    //printf("| ");
                	    //printf("Desc1 is %d Desc2 is %d\n",rp[0], rp[1]);
@@ -177,6 +181,7 @@ void setup_pipes_io(Cmd c, int *lp, int *rp) {
                case TpipeErr: {
                	    if (rp == NULL) {
                	    	err("Something went wrong in output pipes");
+               	    	exit(1);
                	    }
                	    dup2(rp[1], 2);
                	    dup2(rp[1], 1);
